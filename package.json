@@ -37,6 +37,6 @@
     "@anthropic-ai/sdk": "^0.24.3"
   },
   "dependencies": {
-    "@libretto/redact-pii-light": "^1.0.0"
+    "@libretto/redact-pii-light": "^1.0.1"
   }
 }

@@ -119,7 +119,7 @@ export class LibrettoCompletions extends Anthropic.Completions {
         apiName: libretto?.promptTemplateName ?? this.config.promptTemplateName,
         prompt: {},
         chatId: libretto?.chatId ?? this.config.chatId,
-        parentEventId: libretto?.parentEventId,
+        chainId: libretto?.chainId ?? libretto?.parentEventId,
         context: libretto?.context,
         feedbackKey,
         modelParameters: {

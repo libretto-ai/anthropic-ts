@@ -37,7 +37,7 @@ export interface EventMetadata {
   apiName?: string;
   apiKey?: string;
   chatId?: string;
-  parentEventId?: string;
+  chainId?: string;
   modelParameters?: ModelParameters;
   feedbackKey?: string;
   context?: Record<string, any>;
@@ -148,6 +148,42 @@ export async function sendFeedback(body: Feedback) {
   const responseJson = await extractJsonBody(response);
   if (!response.ok) {
     throw new Error(`Failed to send feedback: ${JSON.stringify(responseJson)}`);
+  }
+
+  return responseJson;
+}
+
+export interface UpdateChainParams {
+  id: string;
+  result?: string | null;
+  apiKey?: string;
+}
+
+export async function updateChain(body: UpdateChainParams) {
+  if (!body.id) {
+    console.warn("[Libretto] Could not update chain: missing id");
+    return;
+  }
+
+  body.apiKey = body.apiKey ?? process.env.LIBRETTO_API_KEY;
+  if (!body.apiKey) {
+    console.warn("[Libretto] Could not update chain: missing API key");
+    return;
+  }
+
+  const url = getUrl("v1/updateChain", "LIBRETTO_UPDATE_CHAIN_URL");
+  const response = await fetch(url, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  const responseJson = await extractJsonBody(response);
+  if (!response.ok) {
+    throw new Error(
+      `[Libretto] Failed to update chain: ${JSON.stringify(responseJson)}`,
+    );
   }
 
   return responseJson;

@@ -97,12 +97,6 @@ export function getTemplate<T>(o: ObjectTemplate<T>): T {
   return o[templateProp];
 }
 
-export function getTemplateVariables<T>(
-  o: ObjectTemplate<T>,
-): readonly string[] {
-  return o[variablesProp];
-}
-
 /**
  * A template for nested objects, most useful when constructing chat prompts.
  */
@@ -121,9 +115,7 @@ export interface ObjectTemplate_<T> {
   [templateProp]: T;
 }
 
-export type ObjectTemplate<T> = T extends string
-  ? ObjectTemplate_<T>
-  : ObjectTemplate_<T> & T;
+export type ObjectTemplate<T> = ObjectTemplate_<T> & T;
 /**
  * A template for nested objects, most useful when constructing chat prompts.
  *

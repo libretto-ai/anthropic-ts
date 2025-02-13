@@ -5,7 +5,29 @@ import { Stream } from "@anthropic-ai/sdk/streaming";
 import crypto from "crypto";
 import { LibrettoConfig, send_event } from ".";
 import { PiiRedactor } from "./pii";
-import { getResolvedMessages, getResolvedStream } from "./resolvers";
+import {
+  getResolvedMessages,
+  getResolvedPrompt,
+  getResolvedStream,
+} from "./resolvers";
+
+function getResolvedSystemPrompt(
+  system: _Anthropic.Messages.MessageCreateParams["system"],
+  params?: Record<string, any>,
+) {
+  if (!system) {
+    return undefined;
+  }
+
+  // if not a string, we need to create a string representation
+  let systemToUse = system;
+  if (Array.isArray(systemToUse)) {
+    systemToUse = systemToUse.map((item) => item.text).join("\n");
+  }
+
+  // Need to resolve the system prompt
+  return getResolvedPrompt(systemToUse, params);
+}
 
 export class LibrettoMessages extends _Anthropic.Messages {
   protected piiRedactor?: PiiRedactor;
@@ -53,7 +75,14 @@ export class LibrettoMessages extends _Anthropic.Messages {
     _Anthropic.Messages.Message | Stream<_Anthropic.Messages.MessageStreamEvent>
   > {
     const now = Date.now();
-    const { libretto, messages, stream, ...anthropicBody } = body;
+    const { libretto, messages, system, stream, ...anthropicBody } = body;
+
+    // Anthropic handles system seprately and outside of user/assistant messages,
+    // so we need to resolve it differently
+    const resolvedSystem = getResolvedSystemPrompt(
+      system,
+      libretto?.templateParams,
+    );
 
     const { messages: resolvedMessages, template } = getResolvedMessages(
       messages,
@@ -61,7 +90,12 @@ export class LibrettoMessages extends _Anthropic.Messages {
     );
 
     const resultPromise = super.create(
-      { ...anthropicBody, messages: resolvedMessages, stream },
+      {
+        ...anthropicBody,
+        system: resolvedSystem?.prompt,
+        messages: resolvedMessages,
+        stream,
+      },
       options,
     );
 
@@ -95,6 +129,16 @@ export class LibrettoMessages extends _Anthropic.Messages {
         }
       }
 
+      // The Sytem message needs to be prepended to template if it exists
+      const templateWithSystem: any[] = template?.map((item) => item) ?? [];
+      if (templateWithSystem?.length && resolvedSystem) {
+        const librettoSystemMsg = {
+          role: "system",
+          content: resolvedSystem.template,
+        };
+        templateWithSystem.unshift(librettoSystemMsg);
+      }
+
       await send_event({
         responseTime,
         response,
@@ -107,8 +151,7 @@ export class LibrettoMessages extends _Anthropic.Messages {
           libretto?.apiKey ??
           this.config.apiKey ??
           process.env.LIBRETTO_API_KEY,
-        promptTemplateChat:
-          libretto?.templateChat ?? template ?? resolvedMessages,
+        promptTemplateChat: templateWithSystem ?? resolvedMessages,
         promptTemplateName: resolvedPromptTemplateName,
         apiName: libretto?.promptTemplateName ?? this.config.promptTemplateName,
         prompt: {},

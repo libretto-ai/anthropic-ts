@@ -1,6 +1,6 @@
 import _Anthropic from "@anthropic-ai/sdk";
 export { Anthropic } from "./client";
-export { Event, Feedback, sendFeedback, send_event } from "./session";
+export { Event, Feedback, send_event, sendFeedback } from "./session";
 export { f, objectTemplate } from "./template";
 
 export type LibrettoConfig = {
@@ -11,11 +11,9 @@ export type LibrettoConfig = {
   chatId?: string;
 };
 
-type LibrettoCreateParams = {
+export type LibrettoCreateParams = {
   apiKey?: string;
   promptTemplateName?: string;
-  templateText?: string;
-  templateChat?: _Anthropic.Message[];
   templateParams?: Record<string, any>;
   chatId?: string;
   chainId?: string;

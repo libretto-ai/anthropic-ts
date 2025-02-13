@@ -68,6 +68,7 @@ export type Event = EventMetadata & PromptEvent;
 
 export async function send_event(event: Event) {
   if (!event.apiKey) {
+    console.warn(`No LIBRETTO_API_KEY provided, no event will be sent`);
     return;
   }
 

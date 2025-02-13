@@ -113,8 +113,7 @@ export class LibrettoCompletions extends Anthropic.Completions {
           libretto?.apiKey ??
           this.config.apiKey ??
           process.env.LIBRETTO_API_KEY,
-        promptTemplateText:
-          libretto?.templateText ?? template ?? resolvedPromptStr,
+        promptTemplateText: template ?? resolvedPromptStr,
         promptTemplateName: resolvedPromptTemplateName,
         apiName: libretto?.promptTemplateName ?? this.config.promptTemplateName,
         prompt: {},

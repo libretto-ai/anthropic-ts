@@ -1,4 +1,3 @@
-import _Anthropic from "@anthropic-ai/sdk";
 export { Anthropic } from "./client";
 export { Event, Feedback, send_event, sendFeedback } from "./session";
 export { f, objectTemplate } from "./template";

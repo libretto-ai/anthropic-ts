@@ -3,7 +3,7 @@ import Core, { APIPromise } from "@anthropic-ai/sdk/core";
 import { MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import { Stream } from "@anthropic-ai/sdk/streaming";
 import crypto from "crypto";
-import { LibrettoConfig, send_event } from ".";
+import { LibrettoConfig, objectTemplate, send_event } from ".";
 import { PiiRedactor } from "./pii";
 import {
   getResolvedMessages,
@@ -22,7 +22,11 @@ function getResolvedSystemPrompt(
   // if not a string, we need to create a string representation
   let systemToUse = system;
   if (Array.isArray(systemToUse)) {
-    systemToUse = systemToUse.map((item) => item.text).join("\n");
+    // Even if the call has objectTemplate around this array, we lose that
+    // context by combining the strings, so re-wrap with objectTemplate
+    systemToUse = objectTemplate(
+      systemToUse.map((item) => item.text).join("\n"),
+    );
   }
 
   // Need to resolve the system prompt

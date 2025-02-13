@@ -15,11 +15,33 @@ async function main() {
     max_tokens: 1024,
     model: "claude-3-haiku-20240307",
     libretto: {
-      promptTemplateName: "ts-anthropic-test-chat",
+      promptTemplateName: "ts-anthropic-test-chat-str-system",
       templateParams: { tone: "irate", name: "John" },
     },
   });
-  console.log("Chat API replied with: ", messages.content);
+  console.log("Chat API replied with: ", messages.content[0]);
+
+  console.log("Testing Chat API with array system message...");
+  const messages2 = await anthropic.messages.create({
+    system: objectTemplate([
+      {
+        type: "text",
+        text: "You are a {tone} chatbot, greet the person by name",
+      },
+      {
+        type: "text",
+        text: "Don't forget to say you're welcome at the end too!",
+      },
+    ]),
+    messages: objectTemplate([{ role: "user", content: "{name}" }]),
+    max_tokens: 1024,
+    model: "claude-3-haiku-20240307",
+    libretto: {
+      promptTemplateName: "ts-anthropic-test-chat-arr-system",
+      templateParams: { tone: "friendly", name: "John" },
+    },
+  });
+  console.log("Chat API replied with: ", messages2.content[0]);
 
   console.log("Testing Completion API...");
   const completion = await anthropic.completions.create({

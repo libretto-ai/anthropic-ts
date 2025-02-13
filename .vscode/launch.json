@@ -11,12 +11,10 @@
         "--experimental-specifier-resolution=node",
         "ts-node"
       ],
-      "program": "${workspaceFolder}/examples/chathistory.ts",
+      "program": "${workspaceFolder}/examples/simple.ts",
       "cwd": "${workspaceRoot}",
       "internalConsoleOptions": "openOnSessionStart",
-      "env": {
-        "LIBRETTO_API_PREFIX": "http://localhost:3000/api"
-      }
+      "env": {}
     }
   ]
 }

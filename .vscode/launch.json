@@ -14,8 +14,7 @@
       "program": "${workspaceFolder}/examples/simple.ts",
       "cwd": "${workspaceRoot}",
       "internalConsoleOptions": "openOnSessionStart",
-      "env": {
-      }
+      "env": {}
     }
   ]
 }

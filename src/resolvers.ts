@@ -119,7 +119,7 @@ function getStaticChatCompletion(
   return {
     resolvedResponse: allTextContent[0]?.text,
     toolUseBlocks: toolUseBlocks ?? undefined,
-    responseMetrics: { usage: result.usage, stop_reason: result.stop_reason },
+    responseMetrics,
   };
 }
 

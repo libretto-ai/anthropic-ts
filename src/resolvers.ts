@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { APIPromise } from "@anthropic-ai/sdk/core";
 import { Stream } from "@anthropic-ai/sdk/streaming";
+import { ResponseMetrics } from "./session";
 import {
   formatTemplate,
   getTemplate,
@@ -8,14 +9,17 @@ import {
   ObjectTemplate,
 } from "./template";
 
-interface ResolvedAPIResult {
-  response: string | null | undefined;
-  usage?: Anthropic.Messages.Usage | undefined;
-  stop_reason?:
-    | Anthropic.Completions.Completion["stop_reason"]
-    | Anthropic.Messages.Message["stop_reason"]
-    | null;
+export interface ResolvedAPIResult {
+  resolvedResponse: string | null | undefined;
+  responseMetrics?: ResponseMetrics;
+  toolUseBlocks?: Anthropic.Messages.ToolUseBlock[];
 }
+
+export type ResolvedReturnValue =
+  | Stream<Anthropic.Messages.MessageStreamEvent>
+  | Stream<Anthropic.Completions.Completion>
+  | Anthropic.Messages.Message
+  | Anthropic.Completions.Completion;
 
 /** This function papers over the difference between streamed and unstreamed
  * responses. It splits the response into two parts:
@@ -36,11 +40,7 @@ export async function getResolvedStream(
   feedbackKey: string,
   isChat: boolean,
 ): Promise<{
-  returnValue:
-    | Stream<Anthropic.Messages.MessageStreamEvent>
-    | Stream<Anthropic.Completions.Completion>
-    | Anthropic.Messages.Message
-    | Anthropic.Completions.Completion;
+  returnValue: ResolvedReturnValue;
   finalResultPromise: Promise<ResolvedAPIResult>;
 }> {
   if (stream) {
@@ -61,6 +61,7 @@ export async function getResolvedStream(
   const staticResult = (await resultPromise) as
     | Anthropic.Messages.Message
     | Anthropic.Completions.Completion;
+
   if (!staticResult.libretto) {
     staticResult.libretto = {};
   }
@@ -74,6 +75,8 @@ export async function getResolvedStream(
       ),
     };
   }
+
+  // Completion style (pretty old API)
   return {
     returnValue: await resultPromise,
     finalResultPromise: Promise.resolve(
@@ -87,37 +90,36 @@ type PromptString = string | string[] | number[] | number[][];
 function getStaticChatCompletion(
   result: Anthropic.Messages.Message,
 ): ResolvedAPIResult {
-  if (result.content && result.content[0].type === "text") {
-    return {
-      response: result.content[0].text,
-      usage: result.usage,
-      stop_reason: result.stop_reason,
-    };
+  // grab the content from the first message
+  if (!result.content) {
+    return { resolvedResponse: null };
   }
-  // if (result.choices[0].message.function_call) {
-  //   return {
-  //     response: JSON.stringify({
-  //       function_call: result.choices[0].message.function_call,
-  //     }),
-  //     usage: result.usage,
-  //     finish_reason: result.choices[0].finish_reason,
-  //     logprobs: result.choices[0].logprobs,
-  //   };
-  // }
-  // if (result.choices[0].message.tool_calls) {
-  //   return {
-  //     response: JSON.stringify({
-  //       tool_calls: result.choices[0].message.tool_calls,
-  //     }),
-  //     usage: result.usage,
-  //     finish_reason: result.choices[0].finish_reason,
-  //     logprobs: result.choices[0].logprobs,
-  //   };
-  // }
-  return {
-    response: undefined,
+
+  const responseMetrics: ResponseMetrics = {
     usage: result.usage,
     stop_reason: result.stop_reason,
+  };
+
+  // Get the text content
+  const allTextContent = result.content.filter((msg) => {
+    return msg.type === "text";
+  });
+
+  if (allTextContent?.length > 1) {
+    console.warn(
+      `Unexpected multiple text messages in chat response, resolving to the first one`,
+    );
+  }
+
+  // Get all tool use
+  const toolUseBlocks = result.content.filter((msg) => {
+    return msg.type === "tool_use";
+  });
+
+  return {
+    resolvedResponse: allTextContent[0]?.text,
+    toolUseBlocks: toolUseBlocks ?? undefined,
+    responseMetrics: { usage: result.usage, stop_reason: result.stop_reason },
   };
 }
 
@@ -126,28 +128,17 @@ function getStaticCompletion(
 ): ResolvedAPIResult {
   if (!result) {
     return {
-      response: null,
-      usage: undefined,
-      stop_reason: undefined,
-      // logprobs: undefined,
+      resolvedResponse: null,
+      responseMetrics: { usage: undefined, stop_reason: undefined },
     };
   }
   if (result.completion) {
     return {
-      response: result.completion,
-      stop_reason: result.stop_reason,
-      // usage: result.usage,
-      // finish_reason: result.choices[0].finish_reason,
-      // logprobs: result.choices[0].logprobs,
+      resolvedResponse: result.completion,
+      responseMetrics: { stop_reason: result.stop_reason },
     };
   }
-  return {
-    response: undefined,
-    stop_reason: undefined,
-    // usage: result.usage,
-    // finish_reason: undefined,
-    // logprobs: result.choices[0].logprobs,
-  };
+  return { resolvedResponse: undefined };
 }
 export function getResolvedMessages(
   messages:
@@ -227,9 +218,7 @@ class WrappedStream<
   async *[Symbol.asyncIterator]() {
     // Turn iterator into an iterable
     const iter = super[Symbol.asyncIterator]();
-    const iterable = {
-      [Symbol.asyncIterator]: () => iter,
-    };
+    const iterable = { [Symbol.asyncIterator]: () => iter };
     try {
       for await (const item of iterable) {
         if (this.isChat) {
@@ -266,9 +255,11 @@ class WrappedStream<
       }
     } finally {
       this.resolveIterator({
-        response: this.accumulatedResult.join(""),
-        usage: this.responseUsage,
-        stop_reason: this.finishReason,
+        resolvedResponse: this.accumulatedResult.join(""),
+        responseMetrics: {
+          usage: this.responseUsage,
+          stop_reason: this.finishReason,
+        },
       });
     }
   }

@@ -1,3 +1,4 @@
+import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { objectTemplate } from "../src";
 import { Anthropic } from "../src/client";
 
@@ -12,15 +13,9 @@ async function main() {
     I will receive a question from the coach, and I will guide them on the content 
     and quality of the question.`,
     messages: objectTemplate([
-      {
-        role: "chat_history",
-        content: "{prev_messages} {second_history}",
-      },
-      {
-        role: "user",
-        content: "{coach_question}",
-      },
-    ]) as any, // need to cast because of role: "chat_history"
+      { role: "chat_history", content: "{prev_messages} {second_history}" },
+      { role: "user", content: "{coach_question}" },
+    ]) as MessageParam[], // need to cast because of role: "chat_history"
     model: "claude-3-haiku-20240307",
     max_tokens: 1024,
     temperature: 1,
@@ -35,20 +30,11 @@ async function main() {
             role: "user",
             content: "I am not feeling very good because of my home life.",
           },
-          {
-            role: "assistant",
-            content: "I am sorry to hear that.",
-          },
+          { role: "assistant", content: "I am sorry to hear that." },
         ],
         second_history: [
-          {
-            role: "user",
-            content: "Thank you for the kind words.",
-          },
-          {
-            role: "assistant",
-            content: "You're welcome",
-          },
+          { role: "user", content: "Thank you for the kind words." },
+          { role: "assistant", content: "You're welcome" },
         ],
         coach_question:
           "What is the best way to ask a question to an employee who is depressed?",

@@ -14,6 +14,7 @@ export type LibrettoCreateParams = {
   apiKey?: string;
   promptTemplateName?: string;
   templateParams?: Record<string, any>;
+  templateChat?: any[];
   chatId?: string;
   chainId?: string;
   feedbackKey?: string;

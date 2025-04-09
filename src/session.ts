@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { ResolvedAPIResult, ResolvedReturnValue } from "./resolvers";
 
 function getUrl(apiName: string, environmentName: string): string {
   if (process.env[environmentName]) {
@@ -43,23 +44,29 @@ export interface EventMetadata {
   context?: Record<string, any>;
   tools?: any[];
 }
+
+export type ResponseMetrics = {
+  usage?: Anthropic.Messages.Usage | undefined;
+  stop_reason:
+    | Anthropic.Messages.Message["stop_reason"]
+    | Anthropic.Completions.Completion["stop_reason"]
+    | undefined
+    | null;
+};
+
 export interface PromptEvent {
   params: Record<string, any>;
   /** Included after response */
   response?: string | null;
+  /** Plain, raw result from OpenAI */
+  rawResponse?: ResolvedReturnValue | null;
+  /** Possible list of  */
+  toolCalls?: ResolvedAPIResult["toolUseBlocks"] | null;
   /** Response time in ms */
   responseTime?: number;
   /** Included only if there is an error from Anthropic, or error in validation */
   responseErrors?: string[];
-
-  responseMetrics?: {
-    usage: Anthropic.Messages.Usage | undefined;
-    stop_reason:
-      | Anthropic.Messages.Message["stop_reason"]
-      | Anthropic.Completions.Completion["stop_reason"]
-      | undefined
-      | null;
-  };
+  responseMetrics?: ResponseMetrics;
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   prompt: {}; //hack
 }
@@ -78,9 +85,7 @@ export async function send_event(event: Event) {
     const response = await fetch(url, {
       method: "POST",
       body,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
     const responseJson = await extractJsonBody(response);
     if (!response.ok) {
@@ -142,9 +147,7 @@ export async function sendFeedback(body: Feedback) {
   const response = await fetch(url, {
     method: "POST",
     body: JSON.stringify(snakeCaseBody),
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   });
   const responseJson = await extractJsonBody(response);
   if (!response.ok) {
@@ -176,9 +179,7 @@ export async function updateChain(body: UpdateChainParams) {
   const response = await fetch(url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   });
   const responseJson = await extractJsonBody(response);
   if (!response.ok) {

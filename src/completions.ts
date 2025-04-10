@@ -87,47 +87,47 @@ export class LibrettoCompletions extends Anthropic.Completions {
     );
 
     // note: not awaiting the result of this
-    finalResultPromise.then(async ({ response, stop_reason, usage }) => {
-      const responseTime = Date.now() - now;
-      let params = libretto?.templateParams ?? {};
+    finalResultPromise.then(
+      async ({ resolvedResponse: response, responseMetrics }) => {
+        const responseTime = Date.now() - now;
+        let params = libretto?.templateParams ?? {};
 
-      // Redact PII before recording the event
-      if (this.piiRedactor) {
-        try {
-          response = this.piiRedactor.redact(response);
-          params = this.piiRedactor.redact(params);
-        } catch (err) {
-          console.log("Failed to redact PII", err);
+        // Redact PII before recording the event
+        if (this.piiRedactor) {
+          try {
+            response = this.piiRedactor.redact(response);
+            params = this.piiRedactor.redact(params);
+          } catch (err) {
+            console.log("Failed to redact PII", err);
+          }
         }
-      }
 
-      await send_event({
-        responseTime,
-        response,
-        responseMetrics: {
-          usage,
-          stop_reason,
-        },
-        params: params,
-        apiKey:
-          libretto?.apiKey ??
-          this.config.apiKey ??
-          process.env.LIBRETTO_API_KEY,
-        promptTemplateText: template ?? resolvedPromptStr,
-        promptTemplateName: resolvedPromptTemplateName,
-        apiName: libretto?.promptTemplateName ?? this.config.promptTemplateName,
-        prompt: {},
-        chatId: libretto?.chatId ?? this.config.chatId,
-        chainId: libretto?.chainId ?? libretto?.parentEventId,
-        context: libretto?.context,
-        feedbackKey,
-        modelParameters: {
-          modelProvider: "anthropic",
-          modelType: "completion",
-          ...anthropicBody,
-        },
-      });
-    });
+        await send_event({
+          responseTime,
+          response,
+          responseMetrics,
+          params: params,
+          apiKey:
+            libretto?.apiKey ??
+            this.config.apiKey ??
+            process.env.LIBRETTO_API_KEY,
+          promptTemplateText: template ?? resolvedPromptStr,
+          promptTemplateName: resolvedPromptTemplateName,
+          apiName:
+            libretto?.promptTemplateName ?? this.config.promptTemplateName,
+          prompt: {},
+          chatId: libretto?.chatId ?? this.config.chatId,
+          chainId: libretto?.chainId ?? libretto?.parentEventId,
+          context: libretto?.context,
+          feedbackKey,
+          modelParameters: {
+            modelProvider: "anthropic",
+            modelType: "completion",
+            ...anthropicBody,
+          },
+        });
+      },
+    );
 
     return returnValue as
       | Anthropic.Completions.Completion

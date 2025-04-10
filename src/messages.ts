@@ -119,57 +119,63 @@ export class LibrettoMessages extends _Anthropic.Messages {
     );
 
     // note: not awaiting the result of this
-    finalResultPromise.then(async ({ response, stop_reason, usage }) => {
-      const responseTime = Date.now() - now;
-      let params = libretto?.templateParams ?? {};
+    finalResultPromise.then(
+      async ({ resolvedResponse, responseMetrics, toolUseBlocks }) => {
+        const responseTime = Date.now() - now;
+        let params = libretto?.templateParams ?? {};
 
-      // Redact PII before recording the event
-      if (this.piiRedactor) {
-        try {
-          response = this.piiRedactor.redact(response);
-          params = this.piiRedactor.redact(params);
-        } catch (err) {
-          console.log("Failed to redact PII", err);
+        // Redact PII before recording the event
+        if (this.piiRedactor) {
+          try {
+            resolvedResponse = this.piiRedactor.redact(resolvedResponse);
+            params = this.piiRedactor.redact(params);
+          } catch (err) {
+            console.log("Failed to redact PII", err);
+          }
         }
-      }
 
-      // The Sytem message needs to be prepended to template if it exists
-      const templateWithSystem: any[] = template?.map((item) => item) ?? [];
-      if (templateWithSystem?.length && resolvedSystem) {
-        const librettoSystemMsg = {
-          role: "system",
-          content: resolvedSystem.template,
-        };
-        templateWithSystem.unshift(librettoSystemMsg);
-      }
+        // The Sytem message needs to be prepended to template if it exists
+        const templateWithSystem: any[] = template?.map((item) => item) ?? [];
+        if (templateWithSystem?.length && resolvedSystem) {
+          const librettoSystemMsg = {
+            role: "system",
+            content: resolvedSystem.template ?? resolvedSystem.prompt,
+          };
+          templateWithSystem.unshift(librettoSystemMsg);
+        }
 
-      await send_event({
-        responseTime,
-        response,
-        responseMetrics: {
-          usage,
-          stop_reason: stop_reason,
-        },
-        params: params,
-        apiKey:
-          libretto?.apiKey ??
-          this.config.apiKey ??
-          process.env.LIBRETTO_API_KEY,
-        promptTemplateChat: templateWithSystem ?? resolvedMessages,
-        promptTemplateName: resolvedPromptTemplateName,
-        apiName: libretto?.promptTemplateName ?? this.config.promptTemplateName,
-        prompt: {},
-        chatId: libretto?.chatId ?? this.config.chatId,
-        chainId: libretto?.chainId ?? libretto?.parentEventId,
-        context: libretto?.context,
-        feedbackKey,
-        modelParameters: {
-          modelProvider: "anthropic",
-          modelType: "chat",
-          ...anthropicBody,
-        },
-      });
-    });
+        await send_event({
+          responseTime,
+          response: resolvedResponse,
+          rawResponse: returnValue,
+          toolCalls: toolUseBlocks,
+          tools: body.tools,
+          responseMetrics,
+          params: params,
+          apiKey:
+            libretto?.apiKey ??
+            this.config.apiKey ??
+            process.env.LIBRETTO_API_KEY,
+          promptTemplateChat:
+            params?.promptTemplateChat ??
+            templateWithSystem ??
+            resolvedMessages,
+          promptTemplateName: resolvedPromptTemplateName,
+          apiName:
+            libretto?.promptTemplateName ?? this.config.promptTemplateName,
+          prompt: {},
+          chatId: libretto?.chatId ?? this.config.chatId,
+          chainId: libretto?.chainId ?? libretto?.parentEventId,
+          context: libretto?.context,
+          feedbackKey,
+          modelParameters: {
+            modelProvider: "anthropic",
+            modelType: "chat",
+            ...anthropicBody,
+          },
+        });
+      },
+    );
 
     return returnValue as
       | _Anthropic.Messages.Message

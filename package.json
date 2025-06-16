@@ -21,7 +21,7 @@
     "lib/src"
   ],
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
+    "@jest/globals": "^30.0.0",
     "@types/jest": "^29.5.14",
     "@typescript-eslint/eslint-plugin": "^8.29.1",
     "@typescript-eslint/parser": "^8.29.1",
